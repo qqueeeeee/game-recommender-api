@@ -108,7 +108,11 @@ def get_price(appid: int, cc: str = "US"):
             return {"price": (price_obj["final"] / 100), "currency": price_obj["currency"]}
         # Free game case
         if data[str(appid)]["data"].get("is_free"):
-            return {"price": 0, "currency": price_obj.get("currency", "USD")}
+            # fallback to USD if currency is not available
+            currency = "USD"
+            return {"price": 0, "currency": currency}
         return {"price": None}
-    except Exception:
+    except Exception as e:
+        print("Error in get_price:", e)
         return {"price": None}
+
