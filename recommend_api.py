@@ -91,3 +91,24 @@ def recommend(request: RecRequest):
     result = top_games[[APPID_COL, NAME_COL, GENRE_COL, "score", "owners_num"]].rename(
         columns={"owners_num": "owners"}).to_dict(orient="records")
     return {"recommendations": result}
+
+from fastapi import Query
+import requests
+
+@app.get("/price")
+def get_price(appid: int, cc: str = "US"):
+    steam_api_url = f"https://store.steampowered.com/api/appdetails?appids={appid}&cc={cc}"
+    resp = requests.get(steam_api_url)
+    try:
+        data = resp.json()
+        if not data[str(appid)] or not data[str(appid)].get("success"):
+            return {"price": None}
+        price_obj = data[str(appid)]["data"].get("price_overview")
+        if price_obj:
+            return {"price": (price_obj["final"] / 100), "currency": price_obj["currency"]}
+        # Free game case
+        if data[str(appid)]["data"].get("is_free"):
+            return {"price": 0, "currency": price_obj.get("currency", "USD")}
+        return {"price": None}
+    except Exception:
+        return {"price": None}
