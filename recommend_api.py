@@ -94,24 +94,22 @@ def recommend(request: RecRequest):
 
 @app.get("/price")
 def get_price(appid: int, cc: str = "US"):
+    import logging
     steam_api_url = f"https://store.steampowered.com/api/appdetails?appids={appid}&cc={cc}"
-    resp = requests.get(steam_api_url)
     try:
+        resp = requests.get(steam_api_url)
         data = resp.json()
-        if not data[str(appid)] or not data[str(appid)].get("success"):
+        if not data.get(str(appid)) or not data[str(appid)].get("success"):
             return {"price": None}
         price_obj = data[str(appid)]["data"].get("price_overview")
         if price_obj:
             return {"price": (price_obj["final"] / 100), "currency": price_obj["currency"]}
-        # Free game case
         if data[str(appid)]["data"].get("is_free"):
-            # fallback to USD if currency is not available
-            currency = "USD"
-            return {"price": 0, "currency": currency}
+            return {"price": 0, "currency": "USD"}
         return {"price": None}
     except Exception as e:
-        print("Error in get_price:", e)
-        return {"price": None}
+        logging.exception("Error in get_price endpoint")
+        return {"price": None, "error": str(e)}
 
 @app.post("/steam")
 def get_steam_data(payload: dict):
