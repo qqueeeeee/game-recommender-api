@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Query, APIRouter, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
@@ -92,9 +92,6 @@ def recommend(request: RecRequest):
         columns={"owners_num": "owners"}).to_dict(orient="records")
     return {"recommendations": result}
 
-from fastapi import Query
-import requests
-
 @app.get("/price")
 def get_price(appid: int, cc: str = "US"):
     steam_api_url = f"https://store.steampowered.com/api/appdetails?appids={appid}&cc={cc}"
@@ -116,3 +113,33 @@ def get_price(appid: int, cc: str = "US"):
         print("Error in get_price:", e)
         return {"price": None}
 
+@app.post("/steam")
+def get_steam_data(payload: dict):
+    steam_id = payload.get("steamId")
+    # 1. Get owned games
+    games_url = f"https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/"
+    games_params = {
+        "key": STEAM_API_KEY,
+        "steamid": steam_id,
+        "include_appinfo": True,
+        "include_played_free_games": True,
+    }
+    games_resp = requests.get(games_url, params=games_params)
+    games_data = games_resp.json().get("response", {})
+
+    # 2. Get player summary (username/avatar)
+    profile_url = f"https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/"
+    profile_params = {
+        "key": STEAM_API_KEY,
+        "steamids": steam_id,
+    }
+    profile_resp = requests.get(profile_url, params=profile_params)
+    profile_data = profile_resp.json().get("response", {})
+
+    # Format the response
+    return {
+        "response": {
+            "games": games_data.get("games", []),
+            "players": profile_data.get("players", []),
+        }
+    }
